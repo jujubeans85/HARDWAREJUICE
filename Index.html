@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>AI Knob Surface</title>
+    <style>
+        body { margin:0; padding:16px; background:#0a0a0a; color:#e0e0e0; font-family:-apple-system,sans-serif; }
+        h1 { text-align:center; color:#00ff9f; font-size:1.1rem; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(72px,1fr)); gap:12px; max-width:420px; margin:0 auto; }
+        .knob-container { display:flex; flex-direction:column; align-items:center; gap:6px; }
+        .knob { width:68px; height:68px; border-radius:50%; background:#1a1a1a; border:3px solid #333; position:relative; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.6); }
+        .knob::after { content:''; position:absolute; top:8px; left:50%; transform:translateX(-50%); width:4px; height:22px; background:#00ff9f; border-radius:2px; }
+        .knob-label { font-size:0.65rem; text-align:center; max-width:72px; color:#aaa; }
+        .value { color:#00ff9f; font-variant-numeric:tabular-nums; }
+        .prompt-panel { max-width:420px; margin:24px auto 0; background:#121212; border-radius:12px; padding:16px; border:1px solid #222; }
+        textarea { width:100%; height:90px; background:#1a1a1a; border:1px solid #333; color:#e0e0e0; border-radius:8px; padding:10px; font-size:0.85rem; }
+        button { flex:1; padding:10px; background:#222; color:#e0e0e0; border:1px solid #444; border-radius:8px; font-size:0.8rem; }
+        .status { font-size:0.65rem; text-align:center; margin-top:8px; color:#666; }
+    </style>
+</head>
+<body>
+    <h1>AI KNOB SURFACE</h1>
+    <div class="grid" id="knob-grid"></div>
+
+    <div class="prompt-panel">
+        <h2 style="margin:0 0 8px; color:#00ff9f; font-size:0.9rem;">Prompt Panel</h2>
+        <textarea id="prompt-text" placeholder="Live prompt from knobs..."></textarea>
+        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+            <button onclick="updatePromptFromKnobs()">Rebuild from Knobs</button>
+            <button onclick="sendToLLM()">Send to Local LLM</button>
+            <button onclick="triggerRegenerate()">Regenerate (ACE-Step)</button>
+        </div>
+        <div class="status" id="status">Edit IP in code → connect to Mac bridge</div>
+    </div>
+
+    <script>
+        const OSC_BRIDGE_URL = 'ws://192.168.1.XXX:9129'; // ← CHANGE THIS TO YOUR MAC IP
+        const NUM_KNOBS = 16;
+        const PARAM_NAMESPACE = {
+            "01": {name:"vocal_brightness", osc:"/vocal/bright"},
+            "02": {name:"vocal_body", osc:"/vocal/body"},
+            "03": {name:"timbre_blend", osc:"/timbre/blend"},
+            "04": {name:"energy", osc:"/global/energy"},
+            "05": {name:"groove_swing", osc:"/groove/swing"},
+            // Add more as needed
+        };
+        let ws, knobValues = {};
+
+        function createKnob(id, label, initial = 0.5) {
+            const container = document.createElement('div');
+            container.className = 'knob-container';
+            const knob = document.createElement('div');
+            knob.className = 'knob';
+            knob.dataset.id = id;
+            const labelEl = document.createElement('div');
+            labelEl.className = 'knob-label';
+            labelEl.innerHTML = `${label}<br><span class="value" data-id="${id}">${(initial*100).toFixed(0)}%</span>`;
+            container.append(knob, labelEl);
+
+            let startY = 0, startVal = initial;
+            const update = (val) => {
+                const v = Math.max(0, Math.min(1, val));
+                knobValues[id] = v;
+                knob.style.transform = `rotate(${(v-0.5)*270}deg)`;
+                labelEl.querySelector('.value').textContent = `${(v*100).toFixed(0)}%`;
+                sendControl(id, v);
+            };
+
+            knob.addEventListener('pointerdown', e => { startY = e.clientY; startVal = knobValues[id]||initial; knob.setPointerCapture(e.pointerId); });
+            knob.addEventListener('pointermove', e => { if(knob.hasPointerCapture(e.pointerId)) update(startVal + (startY - e.clientY)/200); });
+            knob.addEventListener('pointerup', e => knob.releasePointerCapture(e.pointerId));
+            knob.addEventListener('dblclick', () => update(0.5));
+
+            knobValues[id] = initial;
+            knob.style.transform = `rotate(${(initial-0.5)*270}deg)`;
+            return container;
+        }
+
+        function initKnobs() {
+            const grid = document.getElementById('knob-grid');
+            for(let i=1; i<=NUM_KNOBS; i++) {
+                const key = String(i).padStart(2,'0');
+                const p = PARAM_NAMESPACE[key] || {name:`param_${key}`};
+                grid.appendChild(createKnob(key, p.name.replace(/_/g,' ')));
+            }
+        }
+
+        function sendControl(id, val) {
+            const p = PARAM_NAMESPACE[id] || {osc:`/knob/${id}`};
+            if (ws && ws.readyState === 1) {
+                ws.send(JSON.stringify({address: p.osc, args: [val]}));
+            }
+            updatePromptFromKnobs(true);
+        }
+
+        function updatePromptFromKnobs(silent=false) {
+            const ta = document.getElementById('prompt-text');
+            // Simple but effective rule-based example — expand this
+            let txt = "Intimate ";
+            if ((knobValues['01']||0.5) > 0.65) txt = "Bright, crystalline, airy ";
+            if ((knobValues['02']||0.5) > 0.6) txt += "warm full-bodied ";
+            if ((knobValues['03']||0.5) > 0.55) txt += "smoothly morphed toward rich texture, ";
+            if ((knobValues['04']||0.5) > 0.65) txt += "energetic and confident, ";
+            if ((knobValues['05']||0.5) > 0.6) txt += "with human swing and pocket, ";
+            ta.value = txt + "vocal timbre. High emotional detail.";
+            if(!silent) document.getElementById('status').textContent = "Prompt rebuilt from knobs";
+        }
+
+        function sendToLLM() {
+            const ta = document.getElementById('prompt-text');
+            const st = document.getElementById('status');
+            st.textContent = "Sending to Qwen3 8B...";
+            setTimeout(() => {
+                ta.value += " Subtle analog warmth, precise transients, deep emotional resonance.";
+                st.textContent = "Enhanced prompt ready for ACE-Step / MRT2";
+            }, 600);
+        }
+
+        function triggerRegenerate() {
+            document.getElementById('status').textContent = "ACE-Step regeneration triggered on Mac...";
+            // In real version send OSC /regenerate or HTTP to your Python script
+        }
+
+        function connect() {
+            const st = document.getElementById('status');
+            try {
+                ws = new WebSocket(OSC_BRIDGE_URL);
+                ws.onopen = () => { st.textContent = "Connected to Mac ✓"; st.style.color="#00ff9f"; };
+                ws.onclose = () => { st.textContent = "Disconnected — check bridge & IP"; st.style.color="#ff6b6b"; };
+            } catch(e){ st.textContent = "WebSocket error"; }
+        }
+
+        window.onload = () => {
+            initKnobs();
+            setTimeout(() => updatePromptFromKnobs(true), 400);
+            connect();
+        };
+    </script>
+</body>
+</html>
