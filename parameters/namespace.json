@@ -1,0 +1,87 @@
+{
+  "version": "0.1",
+  "project": "HARDWAREJUICE",
+  "rule": "This file is the single source of truth for control IDs, MIDI CC, OSC addresses, targets, and start values.",
+  "controls": [
+    {
+      "id": "01",
+      "name": "vocal_brightness",
+      "midi_cc": 21,
+      "osc": "/vocal/bright",
+      "target": "nn_latent_1",
+      "start_value": 0.55,
+      "text_bins": ["dark and intimate", "warm", "balanced", "bright", "crystalline"],
+      "notes": "Brighter / crystalline vs dark / intimate"
+    },
+    {
+      "id": "02",
+      "name": "vocal_body",
+      "midi_cc": 22,
+      "osc": "/vocal/body",
+      "target": "nn_latent_2",
+      "start_value": 0.45,
+      "text_bins": ["thin", "lean", "balanced", "warm", "full-bodied"],
+      "notes": "Warmth / low-mid body"
+    },
+    {
+      "id": "03",
+      "name": "timbre_blend",
+      "midi_cc": 23,
+      "osc": "/timbre/blend",
+      "target": "after_map",
+      "start_value": 0.35,
+      "text_bins": ["source-led", "lightly coloured", "hybrid", "donor-led", "fully transformed"],
+      "notes": "Donor timbre crossfade"
+    },
+    {
+      "id": "04",
+      "name": "energy",
+      "midi_cc": 24,
+      "osc": "/global/energy",
+      "target": "mrt2_macro",
+      "start_value": 0.6,
+      "text_bins": ["held back", "soft push", "moving", "confident", "overdriven"],
+      "notes": "Drive / confidence / forward motion"
+    },
+    {
+      "id": "05",
+      "name": "groove_swing",
+      "midi_cc": 25,
+      "osc": "/groove/swing",
+      "target": "humanizer_macro",
+      "start_value": 0.4,
+      "text_bins": ["straight", "slightly loose", "pocketed", "lazy swing", "falling-over swagger"],
+      "notes": "Pocket / looseness / human timing"
+    },
+    {
+      "id": "06",
+      "name": "air",
+      "midi_cc": 26,
+      "osc": "/vocal/air",
+      "target": "eq_high_shelf",
+      "start_value": 0.5,
+      "text_bins": ["closed", "soft top", "open", "breathy", "sparkling"],
+      "notes": "Breath / top-end sparkle"
+    },
+    {
+      "id": "07",
+      "name": "wet_dry",
+      "midi_cc": 27,
+      "osc": "/global/wetdry",
+      "target": "main_mix",
+      "start_value": 0.7,
+      "text_bins": ["mostly direct", "lightly treated", "balanced", "processed", "fully transformed"],
+      "notes": "Processed AI vs direct signal"
+    },
+    {
+      "id": "08",
+      "name": "prompt_weight",
+      "midi_cc": 28,
+      "osc": "/llm/weight",
+      "target": "prompt_builder",
+      "start_value": 0.5,
+      "text_bins": ["ignore prompt", "light influence", "balanced", "strong influence", "prompt-dominant"],
+      "notes": "How strongly controls influence generated prompt"
+    }
+  ]
+}
