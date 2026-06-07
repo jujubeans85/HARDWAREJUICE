@@ -1,142 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>AI Knob Surface</title>
-    <style>
-        body { margin:0; padding:16px; background:#0a0a0a; color:#e0e0e0; font-family:-apple-system,sans-serif; }
-        h1 { text-align:center; color:#00ff9f; font-size:1.1rem; }
-        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(72px,1fr)); gap:12px; max-width:420px; margin:0 auto; }
-        .knob-container { display:flex; flex-direction:column; align-items:center; gap:6px; }
-        .knob { width:68px; height:68px; border-radius:50%; background:#1a1a1a; border:3px solid #333; position:relative; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.6); }
-        .knob::after { content:''; position:absolute; top:8px; left:50%; transform:translateX(-50%); width:4px; height:22px; background:#00ff9f; border-radius:2px; }
-        .knob-label { font-size:0.65rem; text-align:center; max-width:72px; color:#aaa; }
-        .value { color:#00ff9f; font-variant-numeric:tabular-nums; }
-        .prompt-panel { max-width:420px; margin:24px auto 0; background:#121212; border-radius:12px; padding:16px; border:1px solid #222; }
-        textarea { width:100%; height:90px; background:#1a1a1a; border:1px solid #333; color:#e0e0e0; border-radius:8px; padding:10px; font-size:0.85rem; }
-        button { flex:1; padding:10px; background:#222; color:#e0e0e0; border:1px solid #444; border-radius:8px; font-size:0.8rem; }
-        .status { font-size:0.65rem; text-align:center; margin-top:8px; color:#666; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0a">
+<title>HARDWAREJUICE — Phase 0</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"HARDWAREJUICE","short_name":"HWJUICE","start_url":".","display":"standalone","background_color":"%230a0a0a","theme_color":"%2300ff9f","icons":[]}'>
+<style>
+  :root{
+    --bg:#0a0a0a; --panel:#151515; --line:#333; --accent:#00ff9f; --accent2:#ff7b6b;
+    --txt:#f2f2f2; --dim:#b0b0b0;
+    --knob:108px;            /* big knobs for low vision */
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    overscroll-behavior:none; touch-action:manipulation; font-size:20px; }
+  body{ padding:env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 20px); }
+  header{ text-align:center; padding:16px 0 6px; }
+  h1{ margin:0; color:var(--accent); font-size:1.8rem; letter-spacing:3px; font-weight:800; }
+  .sub{ color:var(--dim); font-size:0.8rem; letter-spacing:1px; margin-top:6px; }
+  .bar{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:16px auto; max-width:760px; }
+  button{ padding:18px 22px; background:#1f1f1f; color:var(--txt); border:2px solid #444;
+    border-radius:14px; font-size:1.05rem; font-weight:700; min-height:62px; }
+  button:active{ background:#2c2c2c; }
+  button.on{ border-color:var(--accent); color:var(--accent); }
+  .pillbar{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:10px auto 4px; }
+  .pill{ font-size:0.85rem; color:var(--dim); border:2px solid #333; border-radius:24px; padding:8px 16px; font-weight:700; }
+  .pill.live{ color:var(--accent); border-color:var(--accent); }
+  .grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:26px 18px; max-width:760px; margin:18px auto 0; }
+  @media(min-width:680px){ .grid{ grid-template-columns:repeat(4,1fr); } }
+  .k{ display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .dial{ width:var(--knob); height:var(--knob); border-radius:50%; position:relative; touch-action:none;
+    background:radial-gradient(circle at 50% 36%,#333,#161616);
+    border:4px solid #444; box-shadow:0 5px 16px rgba(0,0,0,.7), inset 0 2px 4px rgba(255,255,255,.06); }
+  .dial::after{ content:''; position:absolute; top:9px; left:50%; width:6px; height:34px;
+    background:var(--accent); border-radius:3px; transform:translateX(-50%); }
+  .dial.touched{ border-color:var(--accent); box-shadow:0 0 0 4px rgba(0,255,159,.25),0 5px 16px rgba(0,0,0,.7); }
+  .lbl{ font-size:0.95rem; color:var(--txt); text-align:center; line-height:1.15; font-weight:700; }
+  .val{ font-size:1.4rem; color:var(--accent); font-variant-numeric:tabular-nums; font-weight:800; }
+  .cc{ font-size:0.72rem; color:var(--dim); }
+  .panel{ max-width:760px; margin:24px auto 0; background:var(--panel); border:2px solid var(--line);
+    border-radius:16px; padding:20px; }
+  .panel h2{ margin:0 0 12px; font-size:1.05rem; color:var(--accent); letter-spacing:1px; }
+  textarea{ width:100%; height:120px; background:#0d0d0d; color:var(--txt); border:2px solid #333;
+    border-radius:12px; padding:16px; font-size:1.1rem; resize:vertical; line-height:1.5; }
+  .row{ display:flex; gap:12px; flex-wrap:wrap; margin-top:14px; }
+  input[type=file]{ display:none; }
+  .status{ text-align:center; font-size:1rem; color:var(--dim); margin:18px auto 0; max-width:760px; min-height:1.2em; font-weight:600; }
+  .note{ font-size:0.85rem; color:#7a7a7a; text-align:center; margin:22px auto 0; line-height:1.6; max-width:760px; }
+</style>
 </head>
 <body>
-    <h1>AI KNOB SURFACE</h1>
-    <div class="grid" id="knob-grid"></div>
+<header>
+  <h1>HARDWAREJUICE</h1>
+  <div class="sub">PHASE 0 · v0.2 · BIG VIEW · REAL AUDIO · LAUNCHPAD MINI MK2 READY</div>
+</header>
 
-    <div class="prompt-panel">
-        <h2 style="margin:0 0 8px; color:#00ff9f; font-size:0.9rem;">Prompt Panel</h2>
-        <textarea id="prompt-text" placeholder="Live prompt from knobs..."></textarea>
-        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-            <button onclick="updatePromptFromKnobs()">Rebuild from Knobs</button>
-            <button onclick="sendToLLM()">Send to Local LLM</button>
-            <button onclick="triggerRegenerate()">Regenerate (ACE-Step)</button>
-        </div>
-        <div class="status" id="status">Edit IP in code → connect to Mac bridge</div>
-    </div>
+<div class="bar">
+  <button id="srcFile" onclick="document.getElementById('file').click()">Load Audio</button>
+  <button id="srcMic" onclick="useMic()">Use Mic</button>
+  <button id="play" onclick="togglePlay()">▶ Play</button>
+  <button id="midi" onclick="initMIDI()">Connect MIDI</button>
+  <input type="file" id="file" accept="audio/*" onchange="loadFile(event)">
+</div>
+<div class="pillbar">
+  <span class="pill" id="srcPill">no source</span>
+  <span class="pill" id="midiPill">midi off</span>
+  <span class="pill" id="ctxPill">audio idle</span>
+</div>
 
-    <script>
-        const OSC_BRIDGE_URL = 'ws://192.168.1.XXX:9129'; // ← CHANGE THIS TO YOUR MAC IP
-        const NUM_KNOBS = 16;
-        const PARAM_NAMESPACE = {
-            "01": {name:"vocal_brightness", osc:"/vocal/bright"},
-            "02": {name:"vocal_body", osc:"/vocal/body"},
-            "03": {name:"timbre_blend", osc:"/timbre/blend"},
-            "04": {name:"energy", osc:"/global/energy"},
-            "05": {name:"groove_swing", osc:"/groove/swing"},
-            // Add more as needed
-        };
-        let ws, knobValues = {};
+<div class="grid" id="grid"></div>
 
-        function createKnob(id, label, initial = 0.5) {
-            const container = document.createElement('div');
-            container.className = 'knob-container';
-            const knob = document.createElement('div');
-            knob.className = 'knob';
-            knob.dataset.id = id;
-            const labelEl = document.createElement('div');
-            labelEl.className = 'knob-label';
-            labelEl.innerHTML = `${label}<br><span class="value" data-id="${id}">${(initial*100).toFixed(0)}%</span>`;
-            container.append(knob, labelEl);
+<div class="panel">
+  <h2>LIVE PROMPT PANEL</h2>
+  <textarea id="prompt" placeholder="Turn knobs or move faders — the prompt rewrites itself..."></textarea>
+  <div class="row">
+    <button onclick="rebuildPrompt()">Rebuild</button>
+    <button onclick="copyPrompt()">Copy</button>
+  </div>
+</div>
 
-            let startY = 0, startVal = initial;
-            const update = (val) => {
-                const v = Math.max(0, Math.min(1, val));
-                knobValues[id] = v;
-                knob.style.transform = `rotate(${(v-0.5)*270}deg)`;
-                labelEl.querySelector('.value').textContent = `${(v*100).toFixed(0)}%`;
-                sendControl(id, v);
-            };
+<div class="panel">
+  <h2>PRESETS (this session)</h2>
+  <div class="row" id="presetRow">
+    <button onclick="savePreset()">+ Save Current</button>
+    <button onclick="resetAll()">Reset All</button>
+  </div>
+</div>
 
-            knob.addEventListener('pointerdown', e => { startY = e.clientY; startVal = knobValues[id]||initial; knob.setPointerCapture(e.pointerId); });
-            knob.addEventListener('pointermove', e => { if(knob.hasPointerCapture(e.pointerId)) update(startVal + (startY - e.clientY)/200); });
-            knob.addEventListener('pointerup', e => knob.releasePointerCapture(e.pointerId));
-            knob.addEventListener('dblclick', () => update(0.5));
+<div class="status" id="status">Load a track or tap Use Mic, then Play. Drag a knob — or tap pad columns on a Launchpad Mini Mk2.</div>
 
-            knobValues[id] = initial;
-            knob.style.transform = `rotate(${(initial-0.5)*270}deg)`;
-            return container;
-        }
+<div class="note">
+  Honest Phase 0: real on-device DSP (EQ, drive, wobble-delay, air, wet/dry), not neural RAVE/AFTER — those come with the Mac.
+  The Launchpad Mini Mk2 has no faders, so each of its 8 grid COLUMNS acts as a vertical light-fader: tap a pad high in a column for a high value, low for low. The pads light up to show the level. If pads light the wrong cells, the status bar prints the pad note when you press — adjust GRID_BASE / ROW_STEP near the top of this file.
+</div>
 
-        function initKnobs() {
-            const grid = document.getElementById('knob-grid');
-            for(let i=1; i<=NUM_KNOBS; i++) {
-                const key = String(i).padStart(2,'0');
-                const p = PARAM_NAMESPACE[key] || {name:`param_${key}`};
-                grid.appendChild(createKnob(key, p.name.replace(/_/g,' ')));
-            }
-        }
+<script>
+/* ============================================================
+   HARDWAREJUICE Phase 0 — v0.2
+   Larger UI for low vision + Launchpad Mini Mk2 pad-grid mapping + LED feedback.
+   Single file. No server. Real Web Audio DSP. Offline-capable.
+   ============================================================ */
 
-        function sendControl(id, val) {
-            const p = PARAM_NAMESPACE[id] || {osc:`/knob/${id}`};
-            if (ws && ws.readyState === 1) {
-                ws.send(JSON.stringify({address: p.osc, args: [val]}));
-            }
-            updatePromptFromKnobs(true);
-        }
+/* ===== LAUNCHPAD MINI MK2 — pad grid as 8 vertical "light faders" =====
+   The Mk2 has NO faders; it sends NOTE messages from an 8x8 pad grid.
+   Each COLUMN (1-8) drives one knob. Tap a pad high in a column = high
+   value, low = low value. Pads light up to show the level (big, easy to
+   see). In the Mk2 standard layout the grid notes are:
+       row (bottom=0..top=7):  note = GRID_BASE + col + row*ROW_STEP
+   bottom-left pad = 11, columns step by 1, rows step by 10.
+   If pads light the WRONG cells, the app prints each pad's note in the
+   status bar when you press it — adjust GRID_BASE / ROW_STEP to match. */
+const GRID_BASE = 11;   // note of bottom-left grid pad
+const ROW_STEP  = 10;   // note increase per row going up
+const GRID_COLS = 8;
+/* Maschine Mk3 / Midi Fighter Twister encoders still work via CC: */
+const KNOB_CC  = [21,22,23,24,25,26,27,28];
+/* LED colours (Launchpad Mini Mk2 velocity palette): */
+const LED_OFF=0, LED_DIM=19, LED_ON=21, LED_TOP=62; // greens + accent
+/* ===================================================================== */
 
-        function updatePromptFromKnobs(silent=false) {
-            const ta = document.getElementById('prompt-text');
-            // Simple but effective rule-based example — expand this
-            let txt = "Intimate ";
-            if ((knobValues['01']||0.5) > 0.65) txt = "Bright, crystalline, airy ";
-            if ((knobValues['02']||0.5) > 0.6) txt += "warm full-bodied ";
-            if ((knobValues['03']||0.5) > 0.55) txt += "smoothly morphed toward rich texture, ";
-            if ((knobValues['04']||0.5) > 0.65) txt += "energetic and confident, ";
-            if ((knobValues['05']||0.5) > 0.6) txt += "with human swing and pocket, ";
-            ta.value = txt + "vocal timbre. High emotional detail.";
-            if(!silent) document.getElementById('status').textContent = "Prompt rebuilt from knobs";
-        }
+const PARAMS = [
+  {id:"01", name:"vocal_brightness", init:0.55, label:"Brightness"},
+  {id:"02", name:"vocal_body",       init:0.45, label:"Body"},
+  {id:"03", name:"timbre_blend",     init:0.35, label:"Timbre Blend"},
+  {id:"04", name:"energy",           init:0.50, label:"Energy"},
+  {id:"05", name:"groove_swing",     init:0.30, label:"Groove / Wobble"},
+  {id:"06", name:"air",              init:0.50, label:"Air"},
+  {id:"07", name:"wet_dry",          init:0.65, label:"Wet / Dry"},
+  {id:"08", name:"prompt_weight",    init:0.50, label:"Prompt Weight"},
+];
+// each param maps to a grid COLUMN (Launchpad) and an encoder CC (Maschine/Twister)
+PARAMS.forEach((p,i)=>{ p.col=i; p.knobCC=KNOB_CC[i]; });
 
-        function sendToLLM() {
-            const ta = document.getElementById('prompt-text');
-            const st = document.getElementById('status');
-            st.textContent = "Sending to Qwen3 8B...";
-            setTimeout(() => {
-                ta.value += " Subtle analog warmth, precise transients, deep emotional resonance.";
-                st.textContent = "Enhanced prompt ready for ACE-Step / MRT2";
-            }, 600);
-        }
+let ctx, sourceNode, fileBuffer, micStream, isPlaying=false, usingMic=false;
+const vals={}, nodes={}; let lfo,lfoGain,midiAccess=null;
 
-        function triggerRegenerate() {
-            document.getElementById('status').textContent = "ACE-Step regeneration triggered on Mac...";
-            // In real version send OSC /regenerate or HTTP to your Python script
-        }
+const grid=document.getElementById('grid');
+PARAMS.forEach(p=>{
+  vals[p.id]=p.init;
+  const wrap=document.createElement('div'); wrap.className='k';
+  const dial=document.createElement('div'); dial.className='dial'; dial.dataset.id=p.id;
+  const lbl=document.createElement('div'); lbl.className='lbl'; lbl.textContent=p.label;
+  const val=document.createElement('div'); val.className='val'; val.dataset.id=p.id;
+  const cc=document.createElement('div'); cc.className='cc';
+  cc.textContent=`pad col ${p.col+1} · knob CC${p.knobCC}`;
+  wrap.append(dial,lbl,val,cc); grid.append(wrap);
+  setDial(p.id,p.init); attachDrag(dial,p.id);
+});
 
-        function connect() {
-            const st = document.getElementById('status');
-            try {
-                ws = new WebSocket(OSC_BRIDGE_URL);
-                ws.onopen = () => { st.textContent = "Connected to Mac ✓"; st.style.color="#00ff9f"; };
-                ws.onclose = () => { st.textContent = "Disconnected — check bridge & IP"; st.style.color="#ff6b6b"; };
-            } catch(e){ st.textContent = "WebSocket error"; }
-        }
+function setDial(id,v){
+  v=Math.max(0,Math.min(1,v)); vals[id]=v;
+  const dial=document.querySelector(`.dial[data-id="${id}"]`);
+  const val=document.querySelector(`.val[data-id="${id}"]`);
+  if(dial) dial.style.transform=`rotate(${v*270-135}deg)`;
+  if(val) val.textContent=Math.round(v*100)+'%';
+  const p=PARAMS.find(x=>x.id===id); if(p&&typeof paintColumn==='function') paintColumn(p.col);
+  applyAudio(); rebuildPrompt(true);
+}
+function attachDrag(dial,id){
+  let startY=0,startV=0,active=false;
+  dial.addEventListener('pointerdown',e=>{active=true;startY=e.clientY;startV=vals[id];
+    dial.classList.add('touched'); dial.setPointerCapture(e.pointerId); e.preventDefault();});
+  dial.addEventListener('pointermove',e=>{ if(active) setDial(id,startV+(startY-e.clientY)/200); });
+  const end=()=>{active=false; dial.classList.remove('touched');};
+  dial.addEventListener('pointerup',end); dial.addEventListener('pointercancel',end);
+  dial.addEventListener('dblclick',()=>setDial(id,PARAMS.find(p=>p.id===id).init));
+}
 
-        window.onload = () => {
-            initKnobs();
-            setTimeout(() => updatePromptFromKnobs(true), 400);
-            connect();
-        };
-    </script>
+// ---------- Audio ----------
+function ensureCtx(){
+  if(ctx) return;
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  nodes.input=ctx.createGain();
+  nodes.body=ctx.createBiquadFilter(); nodes.bright=ctx.createBiquadFilter();
+  nodes.tilt=ctx.createBiquadFilter(); nodes.air=ctx.createBiquadFilter();
+  nodes.drive=ctx.createWaveShaper();
+  nodes.delay=ctx.createDelay(1.0); nodes.fb=ctx.createGain();
+  nodes.wet=ctx.createGain(); nodes.dry=ctx.createGain(); nodes.out=ctx.createGain();
+  nodes.body.type='lowshelf'; nodes.body.frequency.value=250;
+  nodes.bright.type='highshelf'; nodes.bright.frequency.value=3500;
+  nodes.tilt.type='peaking'; nodes.tilt.Q.value=0.8;
+  nodes.air.type='highshelf'; nodes.air.frequency.value=11000;
+  nodes.input.connect(nodes.body); nodes.body.connect(nodes.bright);
+  nodes.bright.connect(nodes.tilt); nodes.tilt.connect(nodes.air); nodes.air.connect(nodes.drive);
+  nodes.drive.connect(nodes.dry); nodes.dry.connect(nodes.out);
+  nodes.drive.connect(nodes.delay); nodes.delay.connect(nodes.fb); nodes.fb.connect(nodes.delay);
+  nodes.delay.connect(nodes.wet); nodes.wet.connect(nodes.out); nodes.out.connect(ctx.destination);
+  lfo=ctx.createOscillator(); lfoGain=ctx.createGain(); lfo.frequency.value=0.4; lfoGain.gain.value=0;
+  lfo.connect(lfoGain); lfoGain.connect(nodes.delay.delayTime); lfo.start();
+  applyAudio();
+  document.getElementById('ctxPill').textContent='audio ready';
+  document.getElementById('ctxPill').classList.add('live');
+}
+function makeCurve(a){ const n=1024,c=new Float32Array(n),k=a*60;
+  for(let i=0;i<n;i++){const x=i*2/n-1;c[i]=(1+k)*x/(1+k*Math.abs(x));} return c; }
+function applyAudio(){
+  if(!ctx) return; const v=id=>vals[id];
+  nodes.bright.gain.value=(v("01")-0.5)*24;
+  nodes.body.gain.value=(v("02")-0.5)*24;
+  nodes.tilt.frequency.value=400*Math.pow(10,v("03")); nodes.tilt.gain.value=v("03")*8;
+  nodes.drive.curve=makeCurve(v("04")); nodes.out.gain.value=0.5+v("04")*0.6;
+  nodes.delay.delayTime.value=0.12+v("05")*0.25; lfoGain.gain.value=v("05")*0.03; nodes.fb.gain.value=v("05")*0.45;
+  nodes.air.gain.value=v("06")*14;
+  nodes.wet.gain.value=v("07"); nodes.dry.gain.value=1-v("07")*0.85;
+  if(sourceNode&&sourceNode.playbackRate) sourceNode.playbackRate.value=0.94+v("04")*0.12;
+}
+
+async function loadFile(e){ const f=e.target.files[0]; if(!f)return; ensureCtx();
+  fileBuffer=await ctx.decodeAudioData(await f.arrayBuffer()); usingMic=false;
+  const sp=document.getElementById('srcPill'); sp.textContent='file: '+f.name.slice(0,16); sp.classList.add('live');
+  setStatus('File loaded. Tap Play.'); }
+async function useMic(){ ensureCtx();
+  try{ micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    usingMic=true; stopSource(); sourceNode=ctx.createMediaStreamSource(micStream); sourceNode.connect(nodes.input);
+    isPlaying=true; document.getElementById('play').textContent='⏸ Stop';
+    const sp=document.getElementById('srcPill'); sp.textContent='mic live'; sp.classList.add('live');
+    setStatus('Mic live — use headphones to avoid feedback.');
+  }catch(err){ setStatus('Mic blocked: '+err.message); } }
+function stopSource(){ if(sourceNode){ try{sourceNode.disconnect();}catch(e){} try{sourceNode.stop&&sourceNode.stop();}catch(e){} sourceNode=null; } }
+function togglePlay(){ ensureCtx(); if(ctx.state==='suspended')ctx.resume();
+  if(usingMic){ if(isPlaying){stopSource(); if(micStream)micStream.getTracks().forEach(t=>t.enabled=false); isPlaying=false; document.getElementById('play').textContent='▶ Play';} else useMic(); return; }
+  if(!fileBuffer){ setStatus('Load an audio file first (or Use Mic).'); return; }
+  if(isPlaying){ stopSource(); isPlaying=false; document.getElementById('play').textContent='▶ Play'; return; }
+  sourceNode=ctx.createBufferSource(); sourceNode.buffer=fileBuffer; sourceNode.loop=true;
+  sourceNode.connect(nodes.input); applyAudio(); sourceNode.start();
+  isPlaying=true; document.getElementById('play').textContent='⏸ Stop'; setStatus('Playing (looped). Move knobs/faders.'); }
+
+// ---------- WebMIDI: Launchpad Mini Mk2 pad grid ----------
+let midiOut=null;
+async function initMIDI(){
+  if(!navigator.requestMIDIAccess){ setStatus('WebMIDI not in this browser. On iPad use Chrome — Safari does not support WebMIDI.'); return; }
+  try{ midiAccess=await navigator.requestMIDIAccess({sysex:false});
+    const hook=()=>{
+      for(const inp of midiAccess.inputs.values()) inp.onmidimessage=onMIDI;
+      midiOut=[...midiAccess.outputs.values()][0]||null; // first output = Launchpad LEDs
+    };
+    hook(); midiAccess.onstatechange=hook;
+    const n=[...midiAccess.inputs.values()].length;
+    const mp=document.getElementById('midiPill'); mp.textContent='midi on ('+n+')'; mp.classList.add('live');
+    document.getElementById('midi').classList.add('on');
+    paintAll();
+    setStatus('Launchpad connected. Tap pads in a column to set that knob.');
+  }catch(e){ setStatus('MIDI error: '+e.message); }
+}
+
+function noteToCell(note){
+  // standard Mk2 grid: note = GRID_BASE + col + row*ROW_STEP, col 0..7, row 0..7
+  const rel=note-GRID_BASE; if(rel<0) return null;
+  const row=Math.floor(rel/ROW_STEP), col=rel%ROW_STEP;
+  if(col<0||col>=GRID_COLS||row<0||row>7) return null;
+  return {col,row};
+}
+function cellToNote(col,row){ return GRID_BASE + col + row*ROW_STEP; }
+
+function onMIDI(msg){
+  const [st,d1,d2]=msg.data, cmd=st&0xf0;
+  if(cmd===0x90 && d2>0){            // note on (pad press)
+    const c=noteToCell(d1);
+    if(c){ const p=PARAMS[c.col]; if(p){ setDial(p.id, (c.row+0.5)/8); paintColumn(c.col); } }
+    else setStatus('Pad note '+d1+' is outside the grid — adjust GRID_BASE/ROW_STEP.');
+  } else if(cmd===0xb0){             // CC (encoders from Maschine/Twister)
+    const idx=PARAMS.findIndex(p=>p.knobCC===d1);
+    if(idx>=0) setDial(PARAMS[idx].id, d2/127);
+  }
+}
+
+// ---- LED feedback: light each column up to its current level ----
+function paintColumn(col){
+  if(!midiOut) return;
+  const p=PARAMS[col]; const level=Math.round(vals[p.id]*8); // 0..8 rows lit
+  for(let row=0;row<8;row++){
+    let v=LED_OFF;
+    if(row<level) v=(row===level-1)?LED_TOP:LED_ON;
+    midiOut.send([0x90, cellToNote(col,row), v]);
+  }
+}
+function paintAll(){ for(let c=0;c<GRID_COLS;c++) paintColumn(c); }
+
+// ---------- Prompt ----------
+function bin(v,a){ return a[Math.min(a.length-1,Math.floor(v*a.length))]; }
+function rebuildPrompt(silent){
+  const ta=document.getElementById('prompt');
+  const b=bin(vals["01"],["dark, intimate","warm","balanced","bright","airy, crystalline"]);
+  const bd=bin(vals["02"],["thin","lean","full","thick, chesty"]);
+  const en=bin(vals["04"],["barely-there","gentle","driven","intense, forward"]);
+  const gr=bin(vals["05"],["dead straight","subtle pocket","loose swing","wobbling, drunk"]);
+  const air=vals["06"]>0.6?", breath and sparkle on top":"";
+  const wet=bin(vals["07"],["bone dry","mostly dry","spacious","drenched, echoing"]);
+  let txt=`${b} ${bd} tone, ${en} energy, ${gr} feel, ${wet}${air}.`;
+  if(vals["08"]>0.66) txt+=' Push the styling hard — emotion over fidelity.';
+  else if(vals["08"]<0.33) txt+=' Stay faithful to the raw input; restyle lightly.';
+  ta.value=txt; if(!silent) setStatus('Prompt rebuilt.');
+}
+function copyPrompt(){ const ta=document.getElementById('prompt'); ta.select();
+  navigator.clipboard&&navigator.clipboard.writeText(ta.value); setStatus('Prompt copied.'); }
+
+// ---------- Presets (in-memory) ----------
+let presets=[];
+function savePreset(){ const s={}; PARAMS.forEach(p=>s[p.id]=vals[p.id]); presets.push(s); renderPresets(); setStatus('Preset '+presets.length+' saved.'); }
+function renderPresets(){ const row=document.getElementById('presetRow');
+  row.querySelectorAll('.pbtn').forEach(b=>b.remove());
+  presets.forEach((s,i)=>{ const b=document.createElement('button'); b.className='pbtn'; b.textContent='P'+(i+1);
+    b.onclick=()=>{ Object.keys(s).forEach(id=>setDial(id,s[id])); setStatus('Recalled P'+(i+1)); }; row.append(b); }); }
+function resetAll(){ PARAMS.forEach(p=>setDial(p.id,p.init)); setStatus('Reset to defaults.'); }
+
+function setStatus(s){ document.getElementById('status').textContent=s; }
+rebuildPrompt(true);
+document.body.addEventListener('touchstart',()=>{ if(ctx&&ctx.state==='suspended')ctx.resume(); },{passive:true});
+</script>
 </body>
 </html>
